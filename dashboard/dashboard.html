@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telecom Customer Churn EDA Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load local data file -->
+    <script src="data_summary.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg-color: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.8);
+            --card-border: rgba(15, 23, 42, 0.08);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            transition: var(--transition);
+            min-height: 100vh;
+            padding: 2rem;
+            background-image: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1.5rem;
+        }
+
+        .title-container h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.25rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .title-container p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .theme-toggle {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.75rem 1.25rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-blue);
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-blue);
+        }
+
+        .kpi-card.churn::before { background: var(--accent-red); }
+        .kpi-card.tenure::before { background: var(--accent-green); }
+        .kpi-card.charges::before { background: var(--accent-purple); }
+
+        .kpi-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.75rem;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            border-left: 4px solid var(--accent-blue);
+            padding-left: 0.75rem;
+        }
+
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            height: 320px;
+            width: 100%;
+        }
+
+        /* Correlation Heatmap Visualizer */
+        .heatmap-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .heatmap-grid {
+            display: grid;
+            gap: 4px;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 4px;
+            color: #000;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .heatmap-labels-x {
+            display: grid;
+            gap: 4px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .heatmap-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .heatmap-label-y {
+            width: 100px;
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Insights Card */
+        .insights-card {
+            grid-column: span 2;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        @media (max-width: 1024px) {
+            .insights-card {
+                grid-column: span 1;
+            }
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .insight-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: var(--transition);
+        }
+
+        .insight-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(59, 130, 246, 0.2);
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .insight-badge {
+            font-family: 'Outfit', sans-serif;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .insight-badge.danger { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .insight-badge.warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .insight-badge.success { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .insight-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .insight-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--card-border);
+            padding-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="title-container">
+            <h1>Customer Churn Insights</h1>
+            <p>Exploratory Data Analysis (EDA) Interactive Visualization Dashboard</p>
+        </div>
+        <button class="theme-toggle" id="themeToggleBtn">
+            <span id="themeToggleIcon">☀️</span> <span id="themeToggleText">Light Mode</span>
+        </button>
+    </header>
+
+    <!-- KPI Grid -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Total Customers</div>
+            <div class="kpi-value" id="kpiTotal">1,000</div>
+        </div>
+        <div class="kpi-card churn">
+            <div class="kpi-label">Churn Rate</div>
+            <div class="kpi-value" id="kpiChurnRate">14.70%</div>
+        </div>
+        <div class="kpi-card tenure">
+            <div class="kpi-label">Avg Tenure</div>
+            <div class="kpi-value" id="kpiTenure">36.22 mos</div>
+        </div>
+        <div class="kpi-card charges">
+            <div class="kpi-label">Avg Monthly Charges</div>
+            <div class="kpi-value" id="kpiCharges">$59.18</div>
+        </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="dashboard-grid">
+        <!-- Churn Distribution Chart -->
+        <div class="chart-card">
+            <div class="chart-title">Customer Churn Breakdown</div>
+            <div class="chart-container">
+                <canvas id="churnChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Churn by Contract Type -->
+        <div class="chart-card">
+            <div class="chart-title">Churn Probability by Contract Type</div>
+            <div class="chart-container">
+                <canvas id="contractChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Support Calls Impact -->
+        <div class="chart-card">
+            <div class="chart-title">Churn Rate vs Support Calls</div>
+            <div class="chart-container">
+                <canvas id="supportChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Monthly Charges Distribution -->
+        <div class="chart-card">
+            <div class="chart-title">Billing Density (Monthly Charges)</div>
+            <div class="chart-container">
+                <canvas id="chargesDistChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Age Distribution -->
+        <div class="chart-card">
+            <div class="chart-title">Customer Age Distribution</div>
+            <div class="chart-container">
+                <canvas id="ageDistChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Correlation Heatmap Visualizer -->
+        <div class="chart-card">
+            <div class="chart-title">Feature Correlation Heatmap</div>
+            <div class="heatmap-container" id="heatmapContainer">
+                <!-- Heatmap grid generated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights Section -->
+    <div class="insights-card">
+        <div class="chart-title" style="border-color: var(--accent-purple)">Core EDA Findings & Strategic Insights</div>
+        <div class="insights-grid">
+            <div class="insight-item">
+                <div class="insight-header">
+                    <span class="insight-badge danger">High Impact</span>
+                    <span class="insight-title">Tenure (Correlation -0.376)</span>
+                </div>
+                <p class="insight-text">
+                    Average tenure for churned customers is <strong>18.1 months</strong> compared to <strong>39.4 months</strong> for retained customers. The risk is heaviest in the first 2 years.
+                </p>
+            </div>
+            <div class="insight-item">
+                <div class="insight-header">
+                    <span class="insight-badge danger">Alert</span>
+                    <span class="insight-title">Support Calls (Correlation +0.179)</span>
+                </div>
+                <p class="insight-text">
+                    Churn rate starts at <strong>8.57%</strong> for 0 calls, rises to <strong>18.15%</strong> at 2 calls, and surges to <strong>47.62%</strong> for 5 calls. Support interactions represent immediate friction.
+                </p>
+            </div>
+            <div class="insight-item">
+                <div class="insight-header">
+                    <span class="insight-badge warning">Opportunity</span>
+                    <span class="insight-title">Contract Types</span>
+                </div>
+                <p class="insight-text">
+                    Month-to-month contracts exhibit a heavy <strong>24.70% Churn Rate</strong>. Shifting these to 1-year contracts reduces churn rate to <strong>8.26%</strong>, and 2-year contracts drop it to <strong>1.92%</strong>.
+                </p>
+            </div>
+            <div class="insight-item">
+                <div class="insight-header">
+                    <span class="insight-badge success">Strategy</span>
+                    <span class="insight-title">Billing Sensitivities</span>
+                </div>
+                <p class="insight-text">
+                    Churned customers pay an average of <strong>$66.05/month</strong> vs <strong>$58.00/month</strong> for retained ones. Targeting premium billing accounts with loyalty deals is key.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Interactive EDA Dashboard • Designed with Premium Glassmorphism Style
+    </div>
+
+    <script>
+        // Check if data is loaded
+        if (typeof edaDataSummary === 'undefined') {
+            console.error("edaDataSummary is not defined! Please run main.py or ensure data_summary.js is in the same directory.");
+            // Fallback placeholder data if file is not generated or in local sandbox issues
+            window.edaDataSummary = {
+                metrics: { totalCustomers: 1000, churnCount: 147, churnRate: 14.7, avgTenure: 36.22, avgMonthlyCharges: 59.18, avgAge: 46.5 },
+                distributions: {
+                    age: { labels: ["18-25", "25-35", "35-45", "45-55", "55-65", "65-75", "75+"], values: [150, 220, 260, 180, 110, 60, 20] },
+                    tenure: { labels: ["0-12", "12-24", "24-36", "36-48", "48-60", "60-72"], values: [210, 180, 170, 150, 140, 150] },
+                    monthlyCharges: { labels: ["16-30", "30-50", "50-70", "70-90", "90-110"], values: [240, 310, 250, 140, 60] }
+                },
+                segments: {
+                    contract: { rates: { "Month-to-month": 24.70, "One year": 8.26, "Two year": 1.92 } },
+                    support: { rates: { "0": 8.57, "1": 10.21, "2": 18.15, "3": 22.06, "4": 22.22, "5": 47.62 } }
+                },
+                correlation: {
+                    features: ["Age", "Tenure", "MonthlyCharges", "TotalCharges", "SupportCalls", "Churn"],
+                    values: [
+                        [1.0, -0.05, 0.08, -0.01, 0.02, 0.10],
+                        [-0.05, 1.0, 0.12, 0.77, -0.04, -0.38],
+                        [0.08, 0.12, 1.0, 0.58, 0.05, 0.12],
+                        [-0.01, 0.77, 0.58, 1.0, -0.02, -0.24],
+                        [0.02, -0.04, 0.05, -0.02, 1.0, 0.18],
+                        [0.10, -0.38, 0.12, -0.24, 0.18, 1.0]
+                    ]
+                }
+            };
+        }
+
+        const data = window.edaDataSummary;
+
+        // Initialize KPIs
+        document.getElementById('kpiTotal').innerText = data.metrics.totalCustomers.toLocaleString();
+        document.getElementById('kpiChurnRate').innerText = data.metrics.churnRate.toFixed(2) + '%';
+        document.getElementById('kpiTenure').innerText = data.metrics.avgTenure.toFixed(2) + ' mos';
+        document.getElementById('kpiCharges').innerText = '$' + data.metrics.avgMonthlyCharges.toFixed(2);
+
+        // Chart.js Default Configurations
+        Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        function updateChartThemes(theme) {
+            const isDark = theme === 'dark';
+            const colorVal = isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569';
+            const gridVal = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
+            
+            Chart.defaults.color = colorVal;
+            Chart.defaults.borderColor = gridVal;
+            
+            [churnChart, contractChart, supportChart, chargesDistChart, ageDistChart].forEach(chart => {
+                if (chart) {
+                    chart.options.scales.x.grid.color = gridVal;
+                    chart.options.scales.y.grid.color = gridVal;
+                    chart.options.scales.x.ticks.color = colorVal;
+                    chart.options.scales.y.ticks.color = colorVal;
+                    chart.update();
+                }
+            });
+        }
+
+        // 1. Churn Pie Chart
+        const ctxChurn = document.getElementById('churnChart').getContext('2d');
+        const churnChart = new Chart(ctxChurn, {
+            type: 'doughnut',
+            data: {
+                labels: ['Retained Customers', 'Churned Customers'],
+                datasets: [{
+                    data: [data.metrics.totalCustomers - data.metrics.churnCount, data.metrics.churnCount],
+                    backgroundColor: ['#3b82f6', '#ef4444'],
+                    borderColor: 'rgba(30, 41, 59, 0.8)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+
+        // 2. Churn by Contract Type
+        const ctxContract = document.getElementById('contractChart').getContext('2d');
+        const contractLabels = Object.keys(data.segments.contract.rates);
+        const contractValues = Object.values(data.segments.contract.rates);
+        const contractChart = new Chart(ctxContract, {
+            type: 'bar',
+            data: {
+                labels: contractLabels,
+                datasets: [{
+                    label: 'Churn Rate %',
+                    data: contractValues,
+                    backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6'],
+                    borderRadius: 8,
+                    maxBarThickness: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => value + '%' }
+                    }
+                }
+            }
+        });
+
+        // 3. Churn by Support Calls
+        const ctxSupport = document.getElementById('supportChart').getContext('2d');
+        const supportLabels = Object.keys(data.segments.support.rates);
+        const supportValues = Object.values(data.segments.support.rates);
+        const supportChart = new Chart(ctxSupport, {
+            type: 'line',
+            data: {
+                labels: supportLabels,
+                datasets: [{
+                    label: 'Churn Rate %',
+                    data: supportValues,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => value + '%' }
+                    }
+                }
+            }
+        });
+
+        // 4. Monthly Charges Distribution
+        const ctxCharges = document.getElementById('chargesDistChart').getContext('2d');
+        const chargesChart = new Chart(ctxCharges, {
+            type: 'bar',
+            data: {
+                labels: data.distributions.monthlyCharges.labels,
+                datasets: [{
+                    label: 'Frequency',
+                    data: data.distributions.monthlyCharges.values,
+                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // 5. Age Distribution
+        const ctxAge = document.getElementById('ageDistChart').getContext('2d');
+        const ageDistChart = new Chart(ctxAge, {
+            type: 'line',
+            data: {
+                labels: data.distributions.age.labels,
+                datasets: [{
+                    label: 'Density',
+                    data: data.distributions.age.values,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // 6. Dynamic Correlation Heatmap Generator
+        const heatmapContainer = document.getElementById('heatmapContainer');
+        const features = data.correlation.features;
+        const matrix = data.correlation.values;
+
+        function buildHeatmap() {
+            heatmapContainer.innerHTML = '';
+            
+            // X labels line
+            const xLabelRow = document.createElement('div');
+            xLabelRow.className = 'heatmap-row';
+            const spacer = document.createElement('div');
+            spacer.className = 'heatmap-label-y';
+            spacer.innerText = '';
+            xLabelRow.appendChild(spacer);
+            
+            const labelsGrid = document.createElement('div');
+            labelsGrid.className = 'heatmap-labels-x';
+            labelsGrid.style.gridTemplateColumns = `repeat(${features.length}, 1fr)`;
+            labelsGrid.style.flexGrow = '1';
+            
+            features.forEach(feat => {
+                const flabel = document.createElement('div');
+                flabel.innerText = feat;
+                labelsGrid.appendChild(flabel);
+            });
+            xLabelRow.appendChild(labelsGrid);
+            heatmapContainer.appendChild(xLabelRow);
+
+            // Matrix grid
+            features.forEach((feat, rIdx) => {
+                const row = document.createElement('div');
+                row.className = 'heatmap-row';
+                
+                const yLabel = document.createElement('div');
+                yLabel.className = 'heatmap-label-y';
+                yLabel.innerText = feat;
+                row.appendChild(yLabel);
+                
+                const cellGrid = document.createElement('div');
+                cellGrid.className = 'heatmap-grid';
+                cellGrid.style.gridTemplateColumns = `repeat(${features.length}, 1fr)`;
+                cellGrid.style.flexGrow = '1';
+                
+                matrix[rIdx].forEach((val, cIdx) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell';
+                    cell.innerText = val.toFixed(2);
+                    
+                    // Colormap mapping from -1.0 to 1.0 (coolwarm scheme)
+                    // Cool (negative): blue. Warm (positive): red.
+                    let bg = '';
+                    if (val > 0) {
+                        const alpha = val;
+                        bg = `rgba(239, 68, 68, ${alpha})`;
+                        cell.style.color = val > 0.4 ? '#fff' : 'var(--text-primary)';
+                    } else {
+                        const alpha = Math.abs(val);
+                        bg = `rgba(59, 130, 246, ${alpha})`;
+                        cell.style.color = Math.abs(val) > 0.4 ? '#fff' : 'var(--text-primary)';
+                    }
+                    cell.style.backgroundColor = bg;
+                    cell.title = `${features[rIdx]} vs ${features[cIdx]}: ${val}`;
+                    cellGrid.appendChild(cell);
+                });
+                
+                row.appendChild(cellGrid);
+                heatmapContainer.appendChild(row);
+            });
+        }
+        
+        buildHeatmap();
+
+        // Theme Toggle Functionality
+        const themeBtn = document.getElementById('themeToggleBtn');
+        const themeIcon = document.getElementById('themeToggleIcon');
+        const themeText = document.getElementById('themeToggleText');
+        const htmlNode = document.documentElement;
+
+        themeBtn.addEventListener('click', () => {
+            const currentTheme = htmlNode.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            htmlNode.setAttribute('data-theme', newTheme);
+            
+            if (newTheme === 'dark') {
+                themeIcon.innerText = '☀️';
+                themeText.innerText = 'Light Mode';
+                document.body.style.backgroundImage = 'radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%)';
+            } else {
+                themeIcon.innerText = '🌙';
+                themeText.innerText = 'Dark Mode';
+                document.body.style.backgroundImage = 'radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.02) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.02) 0%, transparent 40%)';
+            }
+            updateChartThemes(newTheme);
+        });
+
+        // Initialize theme ticks
+        updateChartThemes('dark');
+    </script>
+</body>
+</html>
